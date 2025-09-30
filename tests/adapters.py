@@ -8,7 +8,7 @@ import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
-from cs336_basics.basic_tokenization import trainingBPE
+from cs336_basics.parallel_tokenization import trainingBPE
 
 
 def run_linear(
