@@ -2,6 +2,7 @@ import regex as re
 from multiprocessing import Pool
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 from timeit import default_timer as timer
+from collections import Counter
 
 def get_stats(ids, counts=None):
     counts = {} if counts is None else counts
@@ -146,6 +147,10 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
     for chunk_ids in ids:
         stats = get_stats(chunk_ids, stats)
 
+    #count of words
+    # word_frequency = Counter(ids)
+    word_frequency = Counter(tuple(word) for word in ids)
+
     print("got stats ", timer() - start_time)
     for merge_id in range(num_merges):
         # new_ids = []
@@ -153,33 +158,31 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
         pair = max(stats, key=lambda p: (stats[p], (vocab[p[0]]), vocab[p[1]]))
         iter_num = num_special + 256 + merge_id
         vocab[iter_num] = vocab[pair[0]] + vocab[pair[1]]  # Add new token to vocab
-        for idx, chunk_id in enumerate(ids):
+        new_word_frequency = {}
+        for word, freq in word_frequency.items():
+            new_word = []
+            #update stats
             i = 0
-            new_chunk = []
-            length = len(chunk_id)
+            length = len(word)
             while i < length:
-                if i < len(chunk_id) - 1 and chunk_id[i] == pair[0] and chunk_id[i + 1] == pair[1]:
+                if i < length - 1 and word[i] == pair[0] and word[i + 1] == pair[1]:
                     if i > 0:
-                        stats[(chunk_id[i-1], pair[0])] = stats.get((chunk_id[i-1], pair[0]), 0) - 1
-                        stats[(chunk_id[i-1], iter_num)] = stats.get((chunk_id[i-1], iter_num), 0) + 1
+                        stats[(word[i-1], pair[0])] = stats.get((word[i-1], pair[0]), 0) - freq
+                        stats[(word[i-1], iter_num)] = stats.get((word[i-1], iter_num), 0) + freq
 
-                    if i + 2 < len(chunk_id):
-                        stats[(pair[1], chunk_id[i + 2])] = stats.get((pair[1], chunk_id[i + 2]), 0) - 1
-                        stats[(iter_num, chunk_id[i+2])] = stats.get((iter_num, chunk_id[i+2]), 0) + 1
-
-                    stats[(pair[0], pair[1])] = stats.get((pair[0], pair[1]), 0) - 1
+                    if i + 2 < length:
+                        stats[(pair[1], word[i + 2])] = stats.get((pair[1], word[i + 2]), 0) - freq
+                        stats[(iter_num, word[i+2])] = stats.get((iter_num, word[i+2]), 0) + freq
+                    stats[(pair[0], pair[1])] = stats.get((pair[0], pair[1]), 0) - freq
                     if stats[(pair[0], pair[1])] == 0:
                         del stats[(pair[0], pair[1])]
-
-                    new_chunk.append(iter_num)
+                    new_word.append(iter_num)
                     i += 2
                 else:
-                    new_chunk.append(chunk_id[i]) #if i the lst element (len - 1)
+                    new_word.append(word[i])
                     i += 1
-            # new_ids.append(new_chunk)
-            ids[idx] = new_chunk
-
-        # ids = new_ids
+            new_word_frequency[tuple(new_word)] = freq
+        word_frequency = new_word_frequency
         merges[pair] = iter_num
 
     for (m1, m2), value in merges.items():
@@ -187,3 +190,5 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
 
     print("full run ", timer() - start_time)
     return vocab, merges_list
+
+# trainingBPE("/Users/anko/Documents/Study/cs336-assignment1/tests/fixtures/corpus.en", 500, [] )
