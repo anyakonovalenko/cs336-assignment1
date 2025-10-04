@@ -139,6 +139,14 @@ class Tokenizer:
         text_bytes = b"".join([self.vocab[i] for i in ids])
         return text_bytes.decode("utf-8",
                                  errors='replace')  # for example 128 is a continuation byte, not the first one, so we need to do it as it can come from LLM and we will not be able to decode
+    def encode_iterable(self, iterable):
+        for text in iterable:
+            # Encode each string and yield its tokens one by one
+            token_ids = self.encode(text)
+            for token_id in token_ids:
+                yield token_id
+
+
 
 if __name__ == "__main__":
     tokenizer = Tokenizer.from_files('/Users/anko/Documents/Study/cs336-assignment1/cs336_basics/tinystories_vocab_10k.pkl','/Users/anko/Documents/Study/cs336-assignment1/cs336_basics/tinystories_merges_10k.pkl', ['<|endoftext|>', '<|end|>'])
