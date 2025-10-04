@@ -7,6 +7,15 @@ import pickle
 import cProfile
 import pstats
 
+# NOTES
+# -----------------------
+# 'cat'.encode('utf-8') == bytes([char for char in chunk])
+# ([bytes([char]) for char in 'cat'.encode('utf-8') ]) == sequence of elements in bytes
+
+# for token in sorted_special_tokens:
+#self.special_tokens_pattern += "(" + re.escape(token) + ")|"
+# ----------------------------
+# NOTES
 
 class Tokenizer:
     def __init__(self, vocab, merges, special_tokens = None):
@@ -19,8 +28,10 @@ class Tokenizer:
 
         #special tokens for encoding
         #1. put special tokens into vocab
-        #2. Create string as a regex string to be able to split by them
-        #3. find them in text and split by them and not delete them(separate token)
+        #2. Create string as a regex string to be able to split by them (re.escape, re.split)
+        #3. Include () in the string to have a special token incleded into partition
+        #4. find them in text and split by them and not delete them(separate token)
+
         if self.special_tokens:
             idx = len(vocab)
             for i, token in enumerate(self.special_tokens):
@@ -61,7 +72,7 @@ class Tokenizer:
         PAT = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
         # tokens = list(text.encode("utf-8"))
-        tokens = []
+        new_parts = []
         if self.special_tokens_pattern:
             parts = re.split(self.special_tokens_pattern, text)
         else:
@@ -69,14 +80,18 @@ class Tokenizer:
 
         for part in parts:
 
-            # if part in self.special_tokens: no need for now
+            if not part:
+                continue
 
+            if self.special_tokens and part in self.special_tokens:
+                new_parts.append([part.encode("utf-8")])
+                continue
+
+            tokens = []
             for match in re.finditer(PAT, part):
                 chunk = match.group()
                 chunk_ids = [bytes([char]) for char in chunk.encode("utf-8")]
                 tokens.append(chunk_ids)
-
-
 
             for num, token in enumerate(tokens):
                 while True:
@@ -108,16 +123,15 @@ class Tokenizer:
                             new_token.append(token[i])
                             i += 1
                     token = new_token
-                if len(token) <= 1:
-                    tokens[num] = token
-                else:
-                    tokens[num] = token
+                new_parts.append(token)
+                # if len(token) <= 1:
+                #     tokens[num] = token
+                # else:
+                #     tokens[num] = token
 
-
-            result = []
-        for pre_token in tokens:  # Each pre_token is like [b'the']
+        result = []
+        for pre_token in new_parts:  # Each pre_token is like [b'the']
             for byte_sequence in pre_token:  # Each byte_sequence is like b'the'
-                # print(byte_sequence.decode('utf8'))
                 result.append(self.reverse_vocab[byte_sequence])
         return result
 
