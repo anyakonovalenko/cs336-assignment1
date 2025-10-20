@@ -4,12 +4,12 @@ from cs336_basics.linear import Linear
 from einops import rearrange, einsum
 
 class SwiGLU(nn.Module):
-    def __init__(self, d_model, device = None, dtype = None):
+    def __init__(self, d_model, d_ff = None, device = None, dtype = None):
         super().__init__()
         self.d_model = d_model
         self.device = device
         self.dtype = dtype
-        self.d_ff  = round((8/3 * d_model) / 64) * 64
+        self.d_ff  = round((8/3 * d_model) / 64) * 64 if None else d_ff
         self.l1 = Linear(self.d_model, self.d_ff)
         self.l2 = Linear(self.d_ff, self.d_model)
         self.l3 = Linear(self.d_model, self.d_ff)

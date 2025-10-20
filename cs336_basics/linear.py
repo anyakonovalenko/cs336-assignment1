@@ -10,10 +10,10 @@ class Linear(nn.Module):
         self.device = device
         self.dtype = dtype
         sigma = 2/(in_features + out_features)
-        self.W = nn.Parameter(nn.init.trunc_normal_(torch.empty(out_features, in_features), 0, sigma, -3*sigma, 3*sigma))
+        self.weights = nn.Parameter(nn.init.trunc_normal_(torch.empty(out_features, in_features), 0, sigma, -3*sigma, 3*sigma))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        result = einsum(self.W, x, "d_out d_in, ... d_in -> ... d_out") #x@self.W.tranpose()
+        result = einsum(self.weights, x, "d_out d_in, ... d_in -> ... d_out") #x@self.W.tranpose()
         return result
 
 

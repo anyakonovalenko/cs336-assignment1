@@ -62,6 +62,7 @@ class AdamW(torch.optim.Optimizer):
         return loss
 
 
+
 # weights = nn.Parameter(5*torch.randn((10,10)))
 # opt = SGD([weights], lr=1e3)
 
@@ -77,4 +78,5 @@ class AdamW(torch.optim.Optimizer):
 #     loss = (weights**2).mean() # Builds computation graph
 #     print(loss.cpu().item())
 #     loss.backward()  # Fills weights.grad with values
-#     opt.step()      # weights -= lr * weights.grad
+#     opt.step()
+# weights -= lr * weights.grad

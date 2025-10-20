@@ -11,9 +11,10 @@ def data_loading(dataset: npt.NDArray, batch_size: int, context_length: int, dev
     inputs = torch.empty((batch_size, context_length), dtype=torch.long)
     targets = torch.empty((batch_size, context_length), dtype=torch.long)
     for bs in range(batch_size):
-        starting_point = np.random.randint(0, len(dataset) - context_length)
+        starting_point = np.random.randint(0, len(dataset) - context_length - 1)
         inputs[bs] = torch.from_numpy(dataset[starting_point:starting_point+context_length])
         targets[bs] = torch.from_numpy(dataset[starting_point+1:starting_point + context_length+1])
 
     return inputs.to(device), targets.to(device)
+
 

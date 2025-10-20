@@ -3,6 +3,8 @@ import torch.nn as nn
 from cs336_basics.linear import Linear
 from einops import rearrange, einsum, repeat
 
+
+#question regarding max_seq_len and positions tokens...
 class RoPE(nn.Module):
     def __init__(self, theta: float, d_k: int, max_seq_len:int, device = None):
         super().__init__()
@@ -22,9 +24,16 @@ class RoPE(nn.Module):
 
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor) -> torch.Tensor:
-        pos_sin = self.sin_angles[token_positions] # [..., seq_len, d_k//2] (for each position it will select sin)
+        if token_positions is None:
+            seq_len = x.shape[-2]
+            # Просто візьми перші seq_len позицій з кешу
+            pos_sin = self.sin_angles[:seq_len]
+            pos_cos = self.cos_angles[:seq_len]
+        else:
+            pos_sin = self.sin_angles[token_positions] #(for each position it will select sin)
+            pos_cos = self.cos_angles[token_positions]
+
         sin_expanded = repeat(pos_sin, '... seq pairs -> ... seq (pairs two)', two=2)
-        pos_cos = self.cos_angles[token_positions]  # [..., seq_len, d_k//2] (for each position it will select sin)
         cos_expanded = repeat(pos_cos, '... seq pairs -> ... seq (pairs two)', two=2)
 
         x_pairs = rearrange(x, '... seq (pairs two) -> ... seq pairs two', two=2)  # [..., seq_len, d_k//2, 2]

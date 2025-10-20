@@ -3,7 +3,7 @@ import torch.nn as nn
 from einops import rearrange, einsum
 
 class RMSNorm(nn.Module):
-    def __init__(self, d_model, eps = 1*10^-5, device = None, dtype = None):
+    def __init__(self, d_model, eps:float = 1e-5, device = None, dtype = None):
         super().__init__()
         self.d_model = d_model
         self.eps = eps
