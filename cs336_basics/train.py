@@ -13,8 +13,9 @@ import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 from data_loading import data_loading
-from transformer_block import TransformerBlock
+from transformer_lm import TransformerLM
 from cross_entropy import cross_entropy
+from softmax import softmax
 from AdamW import AdamW
 from get_lr_cosine_schedule import get_lr_cosine_schedule
 from gradient_clipping import gradient_clipping
@@ -29,7 +30,7 @@ def train(training_path, validation_path, batch_size, context_length, vocab_size
           warmup_iters, cosine_cycle_iters, max_l2_norm, max_steps, path_checkpoint_model, resume, device):
     dataset_train = np.load(training_path, mmap_mode='r')
     dataset_val = np.load(validation_path, mmap_mode='r')
-    transformer = TransformerBlock(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, theta, device)
+    transformer = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, theta, device)
     optimizer = AdamW(transformer.parameters())
     starting_step = 0
 
@@ -43,17 +44,21 @@ def train(training_path, validation_path, batch_size, context_length, vocab_size
             group['lr'] = lr
         optimizer.zero_grad()  #The gradient keeps accumulating like a snowball in backward, Each iteration, you're at a different position (different W values), so you calculate a different slope (different gradient)
         values = transformer.forward(inputs)
+        values = rearrange(values, 'batch context_length vocab_size -> (batch context_length) vocab_size')
+        targets = rearrange(targets, 'batch context_length -> (batch context_length)')
         loss = cross_entropy(values, targets)
         if (i % 50 == 0):
             print(f'Training Loss iter {i}', loss.item())
         loss.backward()
-        gradient_clipping(params=transformer.parameters(), max_l2_norm=max_l2_norm)
+        gradient_clipping(parameters=transformer.parameters(), max_l2_norm=max_l2_norm)
         optimizer.step()
         if (i % 100 == 0):
             save_checkpoint(transformer, optimizer, i, path_checkpoint_model)
             with torch.no_grad():
                 inputs, targets = data_loading(dataset_val, batch_size, context_length, device)  # batch_size, context_length
                 values = transformer.forward(inputs)
+                values = rearrange(values, 'batch context_length vocab_size -> (batch context_length) vocab_size')
+                targets = rearrange(targets, 'batch context_length -> (batch context_length)')
                 loss = cross_entropy(values, targets)
                 print(f'Validation Loss iter {i}', loss.item())
 
@@ -66,12 +71,12 @@ if __name__ == "__main__":
     parser.add_argument('--validation_path', type=str, required=True, help='Path to validation data')
 
     # Model hyperparameters
-    parser.add_argument('--vocab_size', type=int, default=50257, help='Vocabulary size')
+    parser.add_argument('--vocab_size', type=int, default=10000, help='Vocabulary size')
     parser.add_argument('--context_length', type=int, default=256, help='Context length')
     parser.add_argument('--d_model', type=int, default=512, help='Model dimension')
-    parser.add_argument('--num_layers', type=int, default=6, help='Number of transformer layers')
-    parser.add_argument('--num_heads', type=int, default=8, help='Number of attention heads')
-    parser.add_argument('--d_ff', type=int, default=2048, help='Feed-forward dimension')
+    parser.add_argument('--num_layers', type=int, default=4, help='Number of transformer layers')
+    parser.add_argument('--num_heads', type=int, default=16, help='Number of attention heads')
+    parser.add_argument('--d_ff', type=int, default=1344, help='Feed-forward dimension')
     parser.add_argument('--theta', type=int, default=10000, help='Theta for Rope')
 
     # Training hyperparameters
@@ -79,9 +84,9 @@ if __name__ == "__main__":
     parser.add_argument('--max_learning_rate', type=float, default=6e-4, help='Maximum learning rate')
     parser.add_argument('--min_learning_rate', type=float, default=6e-5, help='Minimum learning rate')
     parser.add_argument('--warmup_iters', type=int, default=100, help='Number of warmup iterations')
-    parser.add_argument('--cosine_cycle_iters', type=int, default=1000, help='Cosine cycle iterations')
+    parser.add_argument('--cosine_cycle_iters', type=int, default=100, help='Cosine cycle iterations')
     parser.add_argument('--max_l2_norm', type=float, default=1.0, help='Max L2 norm for gradient clipping')
-    parser.add_argument('--max_steps', type=int, default=10000, help='Maximum training steps')
+    parser.add_argument('--max_steps', type=int, default=100, help='Maximum training steps')
 
     #Checkpoint parameters
     parser.add_argument('--path_checkpoint_model', type=str, required=True, help='Path to saving/loading the model')
