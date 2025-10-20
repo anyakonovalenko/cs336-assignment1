@@ -25,23 +25,37 @@ from checkpoint import load_checkpoint, save_checkpoint
 
 
 def train(training_path, validation_path, batch_size, context_length, vocab_size,
-          d_model, num_layers, num_heads, d_ff, max_learning_rate, min_learning_rate,
-          warmup_iters, cosine_cycle_iters, max_l2_norm, max_steps, device):
-    dataset = np.load(training_path, mmap_mode='r')
-    transformer = TransformerBlock(vocab_size, context_length, d_model, num_layers, num_heads, d_ff)
+          d_model, num_layers, num_heads, d_ff, theta, max_learning_rate, min_learning_rate,
+          warmup_iters, cosine_cycle_iters, max_l2_norm, max_steps, path_checkpoint_model, resume, device):
+    dataset_train = np.load(training_path, mmap_mode='r')
+    dataset_val = np.load(validation_path, mmap_mode='r')
+    transformer = TransformerBlock(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, theta, device)
     optimizer = AdamW(transformer.parameters())
+    starting_step = 0
 
-    for i in range(100):
-        inputs, targets = data_loading(dataset, batch_size, context_length)  # batch_size, context_length
+    if resume:
+        starting_step = load_checkpoint(path_checkpoint_model, transformer, optimizer)
+
+    for i in range(starting_step, max_steps):
+        inputs, targets = data_loading(dataset_train, batch_size, context_length, device)  # batch_size, context_length
         lr = get_lr_cosine_schedule(i, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
         for group in optimizer.param_groups:
             group['lr'] = lr
         optimizer.zero_grad()  #The gradient keeps accumulating like a snowball in backward, Each iteration, you're at a different position (different W values), so you calculate a different slope (different gradient)
         values = transformer.forward(inputs)
         loss = cross_entropy(values, targets)
+        if (i % 50 == 0):
+            print(f'Training Loss iter {i}', loss.item())
         loss.backward()
         gradient_clipping(params=transformer.parameters(), max_l2_norm=max_l2_norm)
         optimizer.step()
+        if (i % 100 == 0):
+            save_checkpoint(transformer, optimizer, i, path_checkpoint_model)
+            with torch.no_grad():
+                inputs, targets = data_loading(dataset_val, batch_size, context_length, device)  # batch_size, context_length
+                values = transformer.forward(inputs)
+                loss = cross_entropy(values, targets)
+                print(f'Validation Loss iter {i}', loss.item())
 
 
 if __name__ == "__main__":
@@ -58,6 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_layers', type=int, default=6, help='Number of transformer layers')
     parser.add_argument('--num_heads', type=int, default=8, help='Number of attention heads')
     parser.add_argument('--d_ff', type=int, default=2048, help='Feed-forward dimension')
+    parser.add_argument('--theta', type=int, default=10000, help='Theta for Rope')
 
     # Training hyperparameters
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
@@ -67,6 +82,10 @@ if __name__ == "__main__":
     parser.add_argument('--cosine_cycle_iters', type=int, default=1000, help='Cosine cycle iterations')
     parser.add_argument('--max_l2_norm', type=float, default=1.0, help='Max L2 norm for gradient clipping')
     parser.add_argument('--max_steps', type=int, default=10000, help='Maximum training steps')
+
+    #Checkpoint parameters
+    parser.add_argument('--path_checkpoint_model', type=str, required=True, help='Path to saving/loading the model')
+    parser.add_argument('--resume', action='store_true', help='Resume training or not, special handling for flags, True with --resume')
 
     # Device
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu',
@@ -84,12 +103,15 @@ if __name__ == "__main__":
         num_layers=args.num_layers,
         num_heads=args.num_heads,
         d_ff=args.d_ff,
+        theta=args.theta,
         max_learning_rate=args.max_learning_rate,
         min_learning_rate=args.min_learning_rate,
         warmup_iters=args.warmup_iters,
         cosine_cycle_iters=args.cosine_cycle_iters,
         max_l2_norm=args.max_l2_norm,
         max_steps=args.max_steps,
+        path_checkpoint_model=args.path_checkpoint_model,
+        resume=args.resume,
         device=args.device
     )
 
