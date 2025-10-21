@@ -47,12 +47,12 @@ def train(training_path, validation_path, batch_size, context_length, vocab_size
         values = rearrange(values, 'batch context_length vocab_size -> (batch context_length) vocab_size')
         targets = rearrange(targets, 'batch context_length -> (batch context_length)')
         loss = cross_entropy(values, targets)
-        if (i % 50 == 0):
+        if (i % 1000 == 0):
             print(f'Training Loss iter {i}', loss.item())
         loss.backward()
         gradient_clipping(parameters=transformer.parameters(), max_l2_norm=max_l2_norm)
         optimizer.step()
-        if (i % 100 == 0):
+        if (i % 1000 == 0):
             save_checkpoint(transformer, optimizer, i, path_checkpoint_model)
             with torch.no_grad():
                 inputs, targets = data_loading(dataset_val, batch_size, context_length, device)  # batch_size, context_length
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument('--warmup_iters', type=int, default=100, help='Number of warmup iterations')
     parser.add_argument('--cosine_cycle_iters', type=int, default=100, help='Cosine cycle iterations')
     parser.add_argument('--max_l2_norm', type=float, default=1.0, help='Max L2 norm for gradient clipping')
-    parser.add_argument('--max_steps', type=int, default=100, help='Maximum training steps')
+    parser.add_argument('--max_steps', type=int, default=50000, help='Maximum training steps')
 
     #Checkpoint parameters
     parser.add_argument('--path_checkpoint_model', type=str, required=True, help='Path to saving/loading the model')

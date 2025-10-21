@@ -33,20 +33,6 @@ def merge_bpe(ids, pair, idx):
 
     return newids
 
-# def decode_my(ids, merges):
-#     print(merges.values())
-#     for i, merge in sorted(merges.items(), key = lambda x: x[1], reverse = True): # later merges depend on earlier tokens
-#         new_ids = []
-#         for id in ids:
-#             if id == merge:
-#                 new_ids.append(i[0])
-#                 new_ids.append(i[1])
-#             else:
-#                 new_ids.append(id)
-#         ids = new_ids
-#     text = bytes(ids).decode('utf-8')  # This gives you 'é'
-#     return text
-
 
 def decode_karp(ids, merges):
     vocab = {i: bytes([i]) for i in range(256)}
@@ -92,13 +78,6 @@ def process_chunk(args):
                 chunk = match.group()
                 chunk_ids = [byte_val + num_special for byte_val in chunk.encode("utf-8")]
                 all_ids.append(chunk_ids)
-
-            # text_chunks = re.findall(PAT, doc)
-            #
-            # # Encode to ids with offset
-            # ids = [[byte_val + num_special for byte_val in ch.encode("utf-8")]
-            #        for ch in text_chunks]
-            # all_ids.extend(ids)
     return all_ids
 
 
@@ -113,18 +92,13 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
         num_processes = 4
         boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
-        # The following is a serial implementation, but you can parallelize this
-        # by sending each start/end pair to a set of processes.
-        # for start, end in zip(boundaries[:-1], boundaries[1:]):
-        #     f.seek(start)
-        #     chunk = f.read(end - start).decode("utf-8", errors="ignore")
-            # Run pre-tokenization on your chunk and store the counts for each pre-token
     print("opened file ", timer() - start_time)
     chunk_args = [(start, end, input_path, PAT, num_special, special_tokens)
                   for start, end in zip(boundaries[:-1], boundaries[1:])]
     print("split chunks ", timer() - start_time)
     with Pool(num_processes) as pool:
         chunk_results = pool.map(process_chunk, chunk_args)
+
     print("pool map done ", timer() - start_time)
     # Flatten results into single ids list
     ids = []
@@ -132,7 +106,6 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
         ids.extend(chunk_ids)
     print("ids extend ", timer() - start_time)
 
-    # ids = [[byte_val + num_special for byte_val in list(ch.encode("utf-8"))] for ch in text_chunks]
     num_merges = vocab_size - 256 - len(special_tokens)
     merges = {} #(int, int) -> int  you had othervise previously newid -> (pair (int, int))
     merges_list = []
@@ -148,12 +121,10 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
         stats = get_stats(chunk_ids, stats)
 
     #count of words
-    # word_frequency = Counter(ids)
     word_frequency = Counter(tuple(word) for word in ids)
 
     print("got stats ", timer() - start_time)
     for merge_id in range(num_merges):
-        # new_ids = []
         # Use vocab to get byte representation for lexicographic comparison
         pair = max(stats, key=lambda p: (stats[p], (vocab[p[0]]), vocab[p[1]]))
         iter_num = num_special + 256 + merge_id
@@ -189,6 +160,7 @@ def trainingBPE(input_path, vocab_size, special_tokens) -> tuple[dict[int, bytes
         merges_list.append((vocab[m1], vocab[m2]))
 
     print("full run ", timer() - start_time)
+    print(vocab)
     return vocab, merges_list
 
 # trainingBPE("/Users/anko/Documents/Study/cs336-assignment1/tests/fixtures/corpus.en", 500, [] )

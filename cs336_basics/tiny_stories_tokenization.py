@@ -146,8 +146,8 @@ def analyze_vocab(vocab):
 
 def main():
     #train to tiny stories
-    input_path = "/Users/anko/Documents/Study/cs336-assignment1/cs336_basics/data/TinyStoriesV2-GPT4-valid.txt"
-    vocab_size = 500
+    input_path = "/Users/anko/Documents/Study/cs336-assignment1/cs336_basics/data/TinyStoriesV2-GPT4-train.txt"
+    vocab_size = 10000
     special_tokens = ["<|endoftext|>"]
     start_time = timer()
     profiler = cProfile.Profile()
