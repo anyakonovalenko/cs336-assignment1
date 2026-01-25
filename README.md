@@ -1,10 +1,10 @@
 # Building a Transformer LM 
 
 This is my implementation Transformer:
--> Implementation of Byte Pair Encoding
--> Transformer Layers
--> Adam loss
--> Training the transformer
+1. Implementation of Byte Pair Encoding
+2. Transformer Layers
+3. Adam loss
+4. Training the transformer
 
 For a full description, see the assignment handout at
 [cs336_spring2025_assignment1_basics.pdf](./cs336_spring2025_assignment1_basics.pdf)
