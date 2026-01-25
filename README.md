@@ -1,4 +1,4 @@
-# CS336: Transformer
+# Building a Transformer LM 
 
 This is my implementation Transformer layers.
 For a full description of the assignment, see the assignment handout at
